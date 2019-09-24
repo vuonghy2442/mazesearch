@@ -1,6 +1,9 @@
 #ifndef _COMMON_
 #define _COMMON_
 
+#define MAX_M 100
+#define MAX_N 100
+
 static const int dr[4] = {0, 1, 0, -1};
 static const int dc[4] = {1, 0, -1, 0};
 

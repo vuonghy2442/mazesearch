@@ -21,9 +21,6 @@ void intHandler(int dummy) {
     //keepRunning = 0;
 }
 
-#define MAX_M 100
-#define MAX_N 100
-
 #define CURRENT_FLAG 4
 #define GOAL_FLAG 8
 
@@ -39,7 +36,6 @@ int m, n;
 int sr, sc;
 int er, ec;
 int maze[MAX_M][MAX_N];
-int info[MAX_M][MAX_N];
 
 static int wait_time = 300;
 
@@ -61,11 +57,9 @@ int get_maze(int i, int j) {
     return maze[i][j];
 }
 
-int get_info(int i, int j) {
-    return info[i][j];
-}
-
 void wait_meo() {
+    gotoend();
+
     if (run)
         wait(wait_time);
     else {
@@ -82,65 +76,100 @@ void wait_meo() {
     }
 }
 
+void toggle_flag(int i, int j, int flag) {
+    int info = get_info(i,j) ^ flag;
+    set_info(i, j, info);
+}
+
+void set_flag(int i, int j, int flag) {
+    int info = get_info(i,j) | flag;
+    set_info(i, j, info);
+}
+
+
+void reset_flag(int i, int j, int flag) {
+    int info = get_info(i,j) & ~flag;
+    set_info(i, j, info);
+}
+
 void meo(int i, int j) {
     gotoxy(0, 0);
 
-    info[i][j] ^= CURRENT_FLAG; //flag for current node
-    draw();
-    info[i][j] ^= CURRENT_FLAG;
-
+    set_flag(i, j, CURRENT_FLAG);
     wait_meo();
+    reset_flag(i, j, CURRENT_FLAG);
 }
 
-bool dfs(int i, int j) {
+static int dfs_depth = INT32_MAX;
 
-    info[i][j] |= DFS_VISITED_FLAG;
-    info[i][j] ^= DFS_PATH_FLAG; //flag for current path
+bool dfs(int i, int j, int depth) {
+    set_flag(i, j, DFS_VISITED_FLAG);
+    set_flag(i, j, DFS_PATH_FLAG); //flag for current path
 
-    if (info[i][j] & GOAL_FLAG) {
+    if (get_info(i,j) & GOAL_FLAG) {
         //goal here
         meo(i, j);
         return true;
     }
 
-    for (int d = 0; d < 4; ++d) {
-        if(!(maze[i][j] & (1 << d)))
-            continue;
+    if (depth < dfs_depth) {    
 
-        int u = i + dr[d];
-        int v = j + dc[d];
+        for (int d = 0; d < 4; ++d) {
+            if(!(maze[i][j] & (1 << d)))
+                continue;
 
-        if (!(info[u][v] & DFS_VISITED_FLAG)) {
-            meo(i, j);
-            if (dfs(u, v))
-                return true;
+            int u = i + dr[d];
+            int v = j + dc[d];
+
+            if (!(get_info(u,v) & DFS_VISITED_FLAG)) {
+                meo(i, j);
+                if (dfs(u, v, depth + 1))
+                    return true;
+            }
         }
+
     }
 
     meo(i, j);
 
-    info[i][j] ^= DFS_PATH_FLAG;
+    reset_flag(i, j, DFS_PATH_FLAG);
 
     return false;
+}
+
+void normal_dfs(int i, int j) {
+    dfs_depth = INT32_MAX;
+    dfs(i, j, 0);
+}
+
+void incremental_dfs(int i, int j) {
+
+    dfs_depth = 0;
+
+    while (!dfs(i, j, 0)) {
+        ++dfs_depth;
+        clear_info();
+        set_flag(er, ec, GOAL_FLAG);
+    }
 }
 
 void bfs(int i, int j) {
     std::queue<std::tuple<int, int>> q;
 
     q.push({i, j});
-    info[i][j] ^= BFS_QUEUE_FLAG;
+    set_flag(i, j, BFS_QUEUE_FLAG);
 
 
     while (!q.empty()) {
         std::tie(i, j) = q.front();
         q.pop();
 
-        info[i][j] |= BFS_VISITED_FLAG;
-        info[i][j] ^= BFS_QUEUE_FLAG;
+        set_flag(i, j, BFS_VISITED_FLAG);
+        reset_flag(i, j, BFS_QUEUE_FLAG);
 
         meo(i, j);
 
-        if (info[i][j] & GOAL_FLAG) {
+        if (get_info(i,j) & GOAL_FLAG) {
             //goal here
             return;
         }
@@ -154,10 +183,10 @@ void bfs(int i, int j) {
             int u = i + dr[d];
             int v = j + dc[d];
 
-            if (!(info[u][v] & (BFS_VISITED_FLAG | BFS_QUEUE_FLAG))) {
+            if (!(get_info(u,v) & (BFS_VISITED_FLAG | BFS_QUEUE_FLAG))) {
                 expand = true;
                 q.push({u,v});
-                info[u][v] ^= BFS_QUEUE_FLAG;
+                set_flag(u, v, BFS_QUEUE_FLAG);
             }
         }
 
@@ -171,7 +200,6 @@ void color_dfs() {
     set_info_str(DFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m");
     set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG, L"\x1B[48;5;1m \x1B[49m");
     set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m");
-    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m");
     set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m");
 }
 
@@ -180,22 +208,28 @@ void color_bfs() {
     set_info_str(BFS_QUEUE_FLAG, L"\x1B[48;5;1m \x1B[49m"); //on queue
     set_info_str(BFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m"); //visited
     set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m"); //visited & current on
-    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m"); //goal
     set_info_str(BFS_QUEUE_FLAG | GOAL_FLAG, L"\x1B[48;5;7m \x1B[49m"); //goal on queue
     set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m"); //currently on goal
 }
 
 void run_search(const char *al) {
     //std::ios_base::sync_with_stdio(false);
-    clear_screen();
     set_cursor(false);
-    info[er][ec] ^= GOAL_FLAG;
+
+    clear_screen();
+    draw_border();
+
+    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m"); //goal
+    set_flag(er, ec, GOAL_FLAG);
+
 
     if (al == std::string("dfs")) {
         color_dfs();
-        dfs(sr, sc);
-    }
-    else if (al == std::string("bfs")) {
+        normal_dfs(sr, sc);
+    } else if (al == std::string("idfs")) {
+        color_dfs();
+        incremental_dfs(sr, sc);
+    } else if (al == std::string("bfs")) {
         color_bfs();
         bfs(sr,sc);
     } else {
@@ -205,7 +239,7 @@ void run_search(const char *al) {
 
 int main(int argc, char **argv) {
     if (argc != 3) { 
-        std::wcerr << L"Usage: run maze_file [bfs/dfs]" << std::endl;
+        std::wcerr << L"Usage: run maze_file [bfs/dfs/idfs]" << std::endl;
         std::wcerr << L"Input 'r wait_time_in_ms\\n' to run" << std::endl;
         std::wcerr << L"Input 's\\n' to do step" << std::endl;
         std::wcerr << L"Press Ctrl+C to pause run" << std::endl;
@@ -218,7 +252,7 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
 
     read(argv[1]);
-    init(m, n, get_maze, get_info);
+    init(m, n, get_maze);
 
     run_search(argv[2]);
 

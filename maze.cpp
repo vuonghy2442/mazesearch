@@ -5,8 +5,6 @@
 #include <tuple>
 #include "common.h"
 
-#define MAX_M 100
-#define MAX_N 100
 
 bool visit[MAX_M][MAX_N];
 int maze[MAX_M][MAX_N]; //maze with binary
