@@ -1,6 +1,8 @@
 # mazesearch
 
 Example run
+
+
   make
  
   ./maze 10 10 prim > meo
