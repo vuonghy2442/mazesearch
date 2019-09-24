@@ -33,8 +33,8 @@ void dfs(int i, int j) {
         int v = j + dc[d];
 
         if (inside(m, n, u, v) && !visit[u][v]) {
-            maze[i][j] |= (1 << k);
-            maze[u][v] |= (1 << rev_dir(k));
+            maze[i][j] |= (1 << d);
+            maze[u][v] |= (1 << rev_dir(d));
             dfs(u, v);
         }
     }
@@ -62,7 +62,6 @@ void dfs(int i, int j) {
 }*/
 
 void dfs() {
-    maze[0][0] = 0;
     dfs(0, 0);
 }
 
