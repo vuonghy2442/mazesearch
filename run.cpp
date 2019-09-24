@@ -1,0 +1,227 @@
+#include <iostream>
+#include "viz.h"
+#include "common.h"
+#include <signal.h>
+#include <fstream>
+#include <queue>
+#include <tuple>
+
+//static volatile int keepRunning = 1;
+
+static volatile bool run = false;
+
+void intHandler(int dummy) {
+    if (run) {
+        run = false;
+        return;
+    }
+
+    set_cursor(true);
+    exit(dummy);
+    //keepRunning = 0;
+}
+
+#define MAX_M 100
+#define MAX_N 100
+
+#define CURRENT_FLAG 4
+#define GOAL_FLAG 8
+
+
+#define DFS_VISITED_FLAG 1
+#define DFS_PATH_FLAG 2
+#define BFS_QUEUE_FLAG 1
+#define BFS_VISITED_FLAG 2
+
+
+
+int m, n;
+int sr, sc;
+int er, ec;
+int maze[MAX_M][MAX_N];
+int info[MAX_M][MAX_N];
+
+static int wait_time = 300;
+
+
+void read(const char *file) {
+    std::ifstream fin;
+    fin.open(file, std::ios_base::openmode::_S_in);
+
+    fin >> m >> n;
+    fin >> sr >> sc >> er >> ec;
+
+    for (int i = 0; i < m; ++i)
+        for(int j = 0; j < n; ++j)
+            fin >> maze[i][j];
+
+}
+
+int get_maze(int i, int j) {
+    return maze[i][j];
+}
+
+int get_info(int i, int j) {
+    return info[i][j];
+}
+
+void wait_meo() {
+    if (run)
+        wait(wait_time);
+    else {
+        wchar_t s;
+        do {
+            std::wcin.get(s);
+        } while (s != 'r' && s != 's');
+
+        if (s == 'r') {
+            std::wcin >> wait_time;
+            run = true;
+        }
+        
+    }
+}
+
+void meo(int i, int j) {
+    gotoxy(0, 0);
+
+    info[i][j] ^= CURRENT_FLAG; //flag for current node
+    draw();
+    info[i][j] ^= CURRENT_FLAG;
+
+    wait_meo();
+}
+
+bool dfs(int i, int j) {
+
+    info[i][j] |= DFS_VISITED_FLAG;
+    info[i][j] ^= DFS_PATH_FLAG; //flag for current path
+
+    if (info[i][j] & GOAL_FLAG) {
+        //goal here
+        meo(i, j);
+        return true;
+    }
+
+    for (int d = 0; d < 4; ++d) {
+        if(!(maze[i][j] & (1 << d)))
+            continue;
+
+        int u = i + dr[d];
+        int v = j + dc[d];
+
+        if (!(info[u][v] & DFS_VISITED_FLAG)) {
+            meo(i, j);
+            if (dfs(u, v))
+                return true;
+        }
+    }
+
+    meo(i, j);
+
+    info[i][j] ^= DFS_PATH_FLAG;
+
+    return false;
+}
+
+void bfs(int i, int j) {
+    std::queue<std::tuple<int, int>> q;
+
+    q.push({i, j});
+    info[i][j] ^= BFS_QUEUE_FLAG;
+
+
+    while (!q.empty()) {
+        std::tie(i, j) = q.front();
+        q.pop();
+
+        info[i][j] |= BFS_VISITED_FLAG;
+        info[i][j] ^= BFS_QUEUE_FLAG;
+
+        meo(i, j);
+
+        if (info[i][j] & GOAL_FLAG) {
+            //goal here
+            return;
+        }
+        
+        bool expand = false;
+
+        for (int d = 0; d < 4; ++d) {
+            if(!(maze[i][j] & (1 << d)))
+                continue;
+    
+            int u = i + dr[d];
+            int v = j + dc[d];
+
+            if (!(info[u][v] & (BFS_VISITED_FLAG | BFS_QUEUE_FLAG))) {
+                expand = true;
+                q.push({u,v});
+                info[u][v] ^= BFS_QUEUE_FLAG;
+            }
+        }
+
+        if (expand)
+            meo(i,j);
+    }
+}
+
+void color_dfs() {
+    set_info_str(0, L" ");
+    set_info_str(DFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m");
+    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG, L"\x1B[48;5;1m \x1B[49m");
+    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m");
+    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m");
+    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m");
+}
+
+void color_bfs() {
+    set_info_str(0, L" ");
+    set_info_str(BFS_QUEUE_FLAG, L"\x1B[48;5;1m \x1B[49m"); //on queue
+    set_info_str(BFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m"); //visited
+    set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m"); //visited & current on
+    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m"); //goal
+    set_info_str(BFS_QUEUE_FLAG | GOAL_FLAG, L"\x1B[48;5;7m \x1B[49m"); //goal on queue
+    set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m"); //currently on goal
+}
+
+void run_search(const char *al) {
+    //std::ios_base::sync_with_stdio(false);
+    clear_screen();
+    set_cursor(false);
+    info[er][ec] ^= GOAL_FLAG;
+
+    if (al == std::string("dfs")) {
+        color_dfs();
+        dfs(sr, sc);
+    }
+    else if (al == std::string("bfs")) {
+        color_bfs();
+        bfs(sr,sc);
+    } else {
+        std::wcerr << L"Unsupported algorithm" << std::endl;
+    }
+}
+
+int main(int argc, char **argv) {
+    if (argc != 3) { 
+        std::wcerr << L"Usage: run maze_file [bfs/dfs]" << std::endl;
+        std::wcerr << L"Input 'r wait_time_in_ms\\n' to run" << std::endl;
+        std::wcerr << L"Input 's\\n' to do step" << std::endl;
+        std::wcerr << L"Press Ctrl+C to pause run" << std::endl;
+
+        return 1;
+    }
+    
+
+    signal(SIGINT, intHandler);
+    setlocale(LC_ALL, "");
+
+    read(argv[1]);
+    init(m, n, get_maze, get_info);
+
+    run_search(argv[2]);
+
+
+    set_cursor(true);
+}
