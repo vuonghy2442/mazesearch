@@ -1,10 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <tuple>
 #include "viz.h"
 #include "common.h"
-#include <chrono>
-#include <thread>
+#include "ui.h"
 
 #define CELL_W 3
 #define CELL_H 1
@@ -25,32 +25,36 @@
 #define V1 L'\u2575' // 186 Vertical Half Line Top
 #define V2 L'\u2577' // 186 Vertical Half Line Bottom
 
+#define FB L'\u2588' //full block
+#define SQ L'\u25A0' //square
+#define LHB L'\u258C' //Left half block
+#define RHB L'\u2590' //right half block
+#define THB L'\u2580' //Upper half block
+#define BHB L'\u2584' //Lower half block
+
+#define LBB L'\u2596' //▖ 	Quadrant lower left
+#define RBB L'\u2597' //▗ 	Quadrant lower right
+#define LTB L'\u2598'  //Quadrant upper left 
+#define RTB L'\u259D' //
+
+#define EDGE(i, j, d) ((bool)(maze(i,j) & (1 << d)))
+
 #define SP L' ' 		  // space string
 #define ST L'*'
-
-/*#define RB "\e(0\x6a\e(B" // 188 Right Bottom corner
-#define RT "\e(0\x6b\e(B" // 187 Right Top corner
-#define LT "\e(0\x6c\e(B" // 201 Left Top cornet
-#define LB "\e(0\x6d\e(B" // 200 Left Bottom corner
-#define MC "\e(0\x6e\e(B" // 206 Midle Cross
-#define HL "\e(0\x71\e(B" // 205 Horizontal Line
-#define LC "\e(0\x74\e(B" // 204 Left Cross
-#define RC "\e(0\x75\e(B" // 185 Right Cross
-#define BC "\e(0\x76\e(B" // 202 Bottom Cross
-#define TC "\e(0\x77\e(B" // 203 Top Cross
-#define VL "\e(0\x78\e(B" // 186 Vertical Line
-#define SP " " 		  // space string*/
 
 #define N_INFO 16
 
 static const wchar_t box_char[] = {SP, H2, V2, LT, H1, HL, RT, TC, V1, LB, VL, LC, RB, BC, RC, MC};
-static std::wstring info_str[N_INFO];
+static const wchar_t block_char[] = {RHB, BHB, LHB, THB};
+static const wchar_t qblock_char[] = {LTB, LBB, RBB, RTB};
+
+static int info_color[N_INFO];
 
 static int m, n;
 static int (*maze)(int, int);
 static int info[MAX_M][MAX_N];
 
-static std::vector<std::wstring> border;
+typedef std::tuple<int, int, int, int> region;
 
 bool check_bidir() {
     for (int i = 0; i < m; ++i) {
@@ -61,8 +65,8 @@ bool check_bidir() {
 
                 if (inside(m, n, u, v)) {
                     int rd = rev_dir(d);
-                    bool w1 = maze(i, j) & (1 << d);
-                    bool w2 = maze(u, v) & (1 << rd);
+                    bool w1 = EDGE(i, j, d);
+                    bool w2 = EDGE(u, v, rd);
 
                     if (w1 != w2)
                         return false;
@@ -75,13 +79,12 @@ bool check_bidir() {
 }
 
 std::wstring text_horizontal(int i) {
-
     std::wstring s;
 
     for(int j = 0; j < n; ++j) {
         s += ST;
         
-        wchar_t c = (maze(i, j) & (1 << 3))?SP:ST;
+        wchar_t c = EDGE(i,j, DUP)?SP:ST;
         s += std::wstring(CELL_W, c);
     }
     s += ST;
@@ -96,7 +99,7 @@ std::wstring text_vertical(int i) {
 
         s += std::wstring(CELL_W, SP);
 
-        if (maze(i, j) & 1)
+        if (EDGE(i, j, DRIGHT))
             s += SP;
         else
             s += ST;
@@ -151,47 +154,166 @@ std::vector<std::wstring> get_border() {
     return border;
 }
 
-void gotoxy(int x, int y) {
-    std::wcout << L"\x1B[" << x << L";" << y << L"f";
-}
-
-void clear_screen(){
-    if(system("clear")) {
-        throw std::runtime_error("Cannot clear screen");
-    }
-}
-
-void set_cursor(bool on) {
-    if (on)
-        std::wcout << L"\e[?25h";
-    else
-        std::wcout << L"\e[?25l";
-}
-
-std::tuple<int, int, int, int> get_cell_reg(int i, int j) {
-    return {i     * (CELL_H + 1) + 2, j     * (CELL_W + 1) + 2, 
-            (i+1) * (CELL_H + 1), (j+1) * (CELL_W + 1)};
-}
-
-void draw_cell(int i, int j) {
-    int l, r, u, d;
-    std::tie(u, l, d, r) = get_cell_reg(i, j);
-
-    for (int row = u; row <= d; ++row) {
-        gotoxy(row, l);
-        for (int col = l; col <= r; ++col)
-            std::wcout << info_str[info[i][j]];
-    }
-
-    std::wcout.flush();
-}
-
 void draw_border() {
     gotoxy(1, 1);
     std::vector<std::wstring> border = get_border();
 
     for (int i = 0; i < border.size(); ++i)
         std::wcout << border[i] << std::endl;
+}
+
+region get_cell_reg(int i, int j) {
+    return {i     * (CELL_H + 1) + 2, j     * (CELL_W + 1) + 2, 
+            (i+1) * (CELL_H + 1), (j+1) * (CELL_W + 1)};
+}
+
+void clear_cell(int i, int j){
+    int l, r, u, d;
+    std::tie(u, l, d, r) = get_cell_reg(i, j);
+
+    for (int row = u; row <= d; ++row) {
+        gotoxy(row, l);
+        for (int col = l; col <= r; ++col)
+            std::wcout << L' ';
+    }
+}
+
+void fill(wchar_t c, region reg) {
+    int l, r, u, d;
+    std::tie(u, l, d, r) = reg;
+
+    for (int row = u; row <= d; ++row) {
+        gotoxy(row, l);
+        for (int col = l; col <= r; ++col)
+           std::wcout << c;
+    }
+}
+
+region get_edge(region reg, int dir) {
+    int l, r, u, d;
+    std::tie(u, l, d, r) = reg;
+
+    switch(dir) {
+        case DLEFT:
+            return {u, l, d, l};
+        case DRIGHT:
+            return {u, r, d, r};
+        case DUP:
+            return {u, l, u, r};
+        case DDOWN:
+            return {d, l, d, r};
+        default:
+            throw std::runtime_error("bug");
+    }
+}
+
+region reduce_reg(region reg, int rl, int rr, int ru, int rd) {
+    int l, r, u, d;
+    std::tie(u, l, d, r) = reg;
+
+    return {u + ru, l + rl, d - rd, r - rr};
+}
+
+region move_reg(region reg, int row, int col) {
+    int l, r, u, d;
+    std::tie(u, l, d, r) = reg;
+
+    return {u + row, l + col, d + row, r + col};
+}
+
+region move_reg(region reg, int dir) {
+    return move_reg(reg, dr[dir], dc[dir]);
+}
+
+void draw_edge(int i, int j, int d) {
+    if (!EDGE(i, j ,d))
+        return;
+
+    int u = i + dr[d];
+    int v = j + dc[d];
+
+    int col1 = info_color[info[i][j]];
+    int col2 = info_color[info[u][v]];
+    int colmid = info_color[std::min(info[i][j], info[u][v])];
+
+    bool ver = dir_ver(d);
+
+    region reg = get_edge(get_cell_reg(i, j), d);
+
+    set_fg(col1);
+
+    if (col1 < 0)
+        fill(SP, reg);
+    else if(!ver) {
+        if (col1 == colmid)
+            fill(FB, reg);
+        else {
+            if (col2 >= 0)
+                set_bg(colmid);
+
+            fill(block_char[rev_dir(d)], reg);        
+            
+            reset_bg();
+        }
+    }
+
+    reg = move_reg(reg, d);
+
+    if (col1 >= 0 && col2 >= 0) {
+        set_fg(colmid);
+
+        fill(FB, reg);
+        
+        if (ver) {
+            fill(RHB, get_edge(reg, DLEFT));
+            fill(LHB, get_edge(reg, DRIGHT));
+        }
+    } else {
+        fill(SP, reg);
+    }
+
+    reg = move_reg(reg, d);
+    set_fg(col2);
+    
+    if (col2 < 0)
+        fill(SP, reg);
+    else if(!ver) {
+        if (col2 == colmid)
+            fill(FB, reg);
+        else {
+            if (col1 >= 0)
+                set_bg(colmid);
+
+            fill(block_char[d], reg);        
+            
+            reset_bg();
+        }
+    }
+
+    reset_fg();
+}
+
+void draw_edge(int i, int j){
+    for (int d = 0; d < 4; ++d)
+        draw_edge(i, j, d);
+}
+
+void draw_cell(int i, int j) {
+    int col = info_color[info[i][j]];
+    if (col < 0)
+        clear_cell(i, j);
+
+    region reg = get_cell_reg(i, j);
+
+    set_fg(col);
+
+    fill(RHB, get_edge(reg, DLEFT));        
+    fill(FB,  reduce_reg(reg, 1, 1, 0, 0));
+    fill(LHB, get_edge(reg, DRIGHT));
+
+    reset_fg();
+
+    std::wcout.flush();
 }
 
 void draw_cell() {
@@ -202,12 +324,9 @@ void draw_cell() {
     }
 }
 
-void wait(int milisec){
-    std::this_thread::sleep_for(std::chrono::milliseconds(milisec));
-}
 
-void set_info_str(int info, const wchar_t *str) {
-    info_str[info] = std::wstring(str);
+void set_info_color(int info, int col) {
+    info_color[info] = col;
 }
 
 void init(int m_, int n_, int (*maze_)(int, int)) {
@@ -216,7 +335,7 @@ void init(int m_, int n_, int (*maze_)(int, int)) {
     maze = maze_;
 
     for (int i = 0; i < N_INFO; ++i)
-        info_str[i] = L" ";
+        info_color[i] = -1;
 
     if (!check_bidir())
         throw std::runtime_error("Wrong input");
@@ -229,6 +348,7 @@ int get_info(int i, int j) {
 void set_info(int i, int j, int v) {
     info[i][j] = v;
     draw_cell(i,j);
+    draw_edge(i,j);
 }
 
 void clear_info() {
@@ -238,7 +358,6 @@ void clear_info() {
 
     draw_cell();
 }
-
 
 void gotoend() {
     gotoxy(m * (CELL_H + 1)  + 2, 0);

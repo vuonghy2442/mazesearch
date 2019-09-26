@@ -1,12 +1,11 @@
 #include <iostream>
-#include "viz.h"
-#include "common.h"
 #include <signal.h>
 #include <fstream>
 #include <queue>
 #include <tuple>
-
-//static volatile int keepRunning = 1;
+#include "viz.h"
+#include "common.h"
+#include "ui.h"
 
 static volatile bool run = false;
 
@@ -16,21 +15,17 @@ void intHandler(int dummy) {
         return;
     }
 
-    set_cursor(true);
+    show_cursor(true);
     exit(dummy);
-    //keepRunning = 0;
 }
 
 #define CURRENT_FLAG 4
 #define GOAL_FLAG 8
 
-
 #define DFS_VISITED_FLAG 1
 #define DFS_PATH_FLAG 2
 #define BFS_QUEUE_FLAG 1
 #define BFS_VISITED_FLAG 2
-
-
 
 int m, n;
 int sr, sc;
@@ -38,7 +33,6 @@ int er, ec;
 int maze[MAX_M][MAX_N];
 
 static int wait_time = 300;
-
 
 void read(const char *file) {
     std::ifstream fin;
@@ -53,11 +47,7 @@ void read(const char *file) {
 
 }
 
-int get_maze(int i, int j) {
-    return maze[i][j];
-}
-
-void wait_meo() {
+void wait() {
     gotoend();
 
     if (run)
@@ -92,11 +82,9 @@ void reset_flag(int i, int j, int flag) {
     set_info(i, j, info);
 }
 
-void meo(int i, int j) {
-    gotoxy(0, 0);
-
+void stay(int i, int j) {
     set_flag(i, j, CURRENT_FLAG);
-    wait_meo();
+    wait();
     reset_flag(i, j, CURRENT_FLAG);
 }
 
@@ -108,7 +96,7 @@ bool dfs(int i, int j, int depth) {
 
     if (get_info(i,j) & GOAL_FLAG) {
         //goal here
-        meo(i, j);
+        stay(i, j);
         return true;
     }
 
@@ -122,7 +110,7 @@ bool dfs(int i, int j, int depth) {
             int v = j + dc[d];
 
             if (!(get_info(u,v) & DFS_VISITED_FLAG)) {
-                meo(i, j);
+                stay(i, j);
                 if (dfs(u, v, depth + 1))
                     return true;
             }
@@ -130,8 +118,7 @@ bool dfs(int i, int j, int depth) {
 
     }
 
-    meo(i, j);
-
+    stay(i, j);
     reset_flag(i, j, DFS_PATH_FLAG);
 
     return false;
@@ -167,7 +154,7 @@ void bfs(int i, int j) {
         set_flag(i, j, BFS_VISITED_FLAG);
         reset_flag(i, j, BFS_QUEUE_FLAG);
 
-        meo(i, j);
+        stay(i, j);
 
         if (get_info(i,j) & GOAL_FLAG) {
             //goal here
@@ -191,35 +178,35 @@ void bfs(int i, int j) {
         }
 
         if (expand)
-            meo(i,j);
+            stay(i,j);
     }
 }
 
 void color_dfs() {
-    set_info_str(0, L" ");
-    set_info_str(DFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m");
-    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG, L"\x1B[48;5;1m \x1B[49m");
-    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m");
-    set_info_str(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m");
+    set_info_color(DFS_VISITED_FLAG, 8);
+    set_info_color(DFS_VISITED_FLAG | DFS_PATH_FLAG, 1);
+    set_info_color(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG, 2);
+    set_info_color(DFS_VISITED_FLAG | DFS_PATH_FLAG | CURRENT_FLAG | GOAL_FLAG, 4);
+    set_info_color(DFS_VISITED_FLAG | DFS_PATH_FLAG | GOAL_FLAG, 4);
 }
 
 void color_bfs() {
-    set_info_str(0, L" ");
-    set_info_str(BFS_QUEUE_FLAG, L"\x1B[48;5;1m \x1B[49m"); //on queue
-    set_info_str(BFS_VISITED_FLAG, L"\x1B[48;5;5m \x1B[49m"); //visited
-    set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG, L"\x1B[48;5;2m \x1B[49m"); //visited & current on
-    set_info_str(BFS_QUEUE_FLAG | GOAL_FLAG, L"\x1B[48;5;7m \x1B[49m"); //goal on queue
-    set_info_str(BFS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, L"\x1B[48;5;4m \x1B[49m"); //currently on goal
+    set_info_color(BFS_QUEUE_FLAG, 1); //on queue
+    set_info_color(BFS_VISITED_FLAG, 8); //visited
+    set_info_color(BFS_VISITED_FLAG | CURRENT_FLAG, 2); //visited & current on
+    set_info_color(BFS_QUEUE_FLAG | GOAL_FLAG, 7); //goal on queue
+    set_info_color(BFS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, 4); //currently on goal
+    set_info_color(BFS_VISITED_FLAG | GOAL_FLAG, 4); //currently on goal
 }
 
 void run_search(const char *al) {
     //std::ios_base::sync_with_stdio(false);
-    set_cursor(false);
+    show_cursor(false);
 
     clear_screen();
     draw_border();
 
-    set_info_str(GOAL_FLAG, L"\x1B[48;5;3m \x1B[49m"); //goal
+    set_info_color(GOAL_FLAG, 3); //goal
     set_flag(er, ec, GOAL_FLAG);
 
 
@@ -237,6 +224,11 @@ void run_search(const char *al) {
     }
 }
 
+void reset() {
+    gotoend();
+    show_cursor(true);
+}
+
 int main(int argc, char **argv) {
     if (argc != 3) { 
         std::wcerr << L"Usage: run maze_file [bfs/dfs/idfs]" << std::endl;
@@ -246,16 +238,13 @@ int main(int argc, char **argv) {
 
         return 1;
     }
-    
 
     signal(SIGINT, intHandler);
     setlocale(LC_ALL, "");
 
     read(argv[1]);
-    init(m, n, get_maze);
-
+    init(m, n, [](int i,int j) {return maze[i][j];});
     run_search(argv[2]);
 
-
-    set_cursor(true);
+    reset();
 }
