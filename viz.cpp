@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <iomanip>
 #include "viz.h"
 #include "common.h"
 #include "ui.h"
@@ -47,6 +48,9 @@ static int info_color[N_INFO];
 static int m, n;
 static int (*maze)(int, int);
 static int info[MAX_M][MAX_N];
+static int value[MAX_M][MAX_N];
+static bool is_show[MAX_M][MAX_N];
+
 
 typedef std::tuple<int, int, int, int> region;
 
@@ -196,6 +200,17 @@ void fill(const std::string c, region reg) {
     }
 }
 
+
+void draw_value(int v, region reg) {
+    int l, r, u, d;
+    std::tie(u, l, d, r) = reg;
+
+    int mid = (u + d) / 2;
+
+    gotoxy(mid, l);
+    std::wcout <<  std::setw(CELL_W) << v;
+}
+
 region get_edge(region reg, int dir) {
     int l, r, u, d;
     std::tie(u, l, d, r) = reg;
@@ -247,57 +262,16 @@ void draw_edge(int i, int j, int d) {
 
     region reg = get_edge(get_cell_reg(i, j), d);
 
-    set_fg(col1);
-
-    if (col1 < 0)
-        fill(SP, reg);
-    else if(!ver) {
-        if (col1 == colmid)
-            fill(FB, reg);
-        else {
-            if (col2 >= 0)
-                set_bg(colmid);
-
-            fill(block_char[rev_dir(d)], reg);        
-            
-            reset_bg();
-        }
-    }
 
     reg = move_reg(reg, d);
 
     if (col1 >= 0 && col2 >= 0) {
-        set_fg(colmid);
-
-        fill(FB, reg);
-        
-        if (ver) {
-            fill(RHB, get_edge(reg, DLEFT));
-            fill(LHB, get_edge(reg, DRIGHT));
-        }
+        set_bg(colmid);
+        fill(SP, reg);
+        reset_bg();
     } else {
         fill(SP, reg);
     }
-
-    reg = move_reg(reg, d);
-    set_fg(col2);
-    
-    if (col2 < 0)
-        fill(SP, reg);
-    else if(!ver) {
-        if (col2 == colmid)
-            fill(FB, reg);
-        else {
-            if (col1 >= 0)
-                set_bg(colmid);
-
-            fill(block_char[d], reg);        
-            
-            reset_bg();
-        }
-    }
-
-    reset_fg();
 }
 
 void draw_edge(int i, int j){
@@ -312,13 +286,12 @@ void draw_cell(int i, int j) {
 
     region reg = get_cell_reg(i, j);
 
-    set_fg(col);
-
-    fill(RHB, get_edge(reg, DLEFT));        
-    fill(FB,  reduce_reg(reg, 1, 1, 0, 0));
-    fill(LHB, get_edge(reg, DRIGHT));
-
-    reset_fg();
+    set_bg(col);
+    if (is_show[i][j])
+        draw_value(value[i][j],  reg);
+    else
+        fill(SP, reg);
+    reset_bg();
 
     std::cout.flush();
 }
@@ -356,6 +329,30 @@ void set_info(int i, int j, int v) {
     info[i][j] = v;
     draw_cell(i,j);
     draw_edge(i,j);
+}
+
+int get_value(int i, int j) {
+    return value[i][j];
+}
+
+void set_value(int i, int j, int v) {
+    value[i][j] = v;
+    if (is_show[i][j])
+        draw_cell(i,j);
+}
+
+void show_value(int i, int j) {
+    if (!is_show[i][j]) {
+        is_show[i][j] = true;
+        draw_cell(i,j);
+    }
+}
+
+void hide_value(int i, int j) {
+    if (is_show[i][j]) {
+        is_show[i][j] = false;
+        draw_cell(i,j);
+    }
 }
 
 void clear_info() {
