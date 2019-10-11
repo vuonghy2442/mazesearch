@@ -360,7 +360,9 @@ void clear_info() {
         for (int j = 0; j < n; ++j)
             info[i][j] = 0;
 
-    draw_cell();
+    clear_screen();
+    draw_border();
+    //draw_cell();
 }
 
 void gotoend() {
