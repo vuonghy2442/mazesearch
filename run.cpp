@@ -141,18 +141,22 @@ void incremental_dfs(int i, int j) {
 }
 
 void bfs(int i, int j) {
-    std::queue<std::tuple<int, int>> q;
+    std::queue<std::tuple<int, int, int>> q;
 
-    q.push({i, j});
+    q.push({i, j, 0});
     set_flag(i, j, BFS_QUEUE_FLAG);
 
 
     while (!q.empty()) {
-        std::tie(i, j) = q.front();
+        int depth;
+        std::tie(i, j, depth) = q.front();
         q.pop();
 
         set_flag(i, j, BFS_VISITED_FLAG);
         reset_flag(i, j, BFS_QUEUE_FLAG);
+
+        set_value(i, j, depth);
+        show_value(i,j);
 
         stay(i, j);
 
@@ -172,7 +176,7 @@ void bfs(int i, int j) {
 
             if (!(get_info(u,v) & (BFS_VISITED_FLAG | BFS_QUEUE_FLAG))) {
                 expand = true;
-                q.push({u,v});
+                q.push({u, v, depth + 1});
                 set_flag(u, v, BFS_QUEUE_FLAG);
             }
         }
