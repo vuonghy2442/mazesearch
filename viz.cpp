@@ -9,44 +9,38 @@
 #define CELL_W 3
 #define CELL_H 1
 
-#define RB L'\u2518' // 188 Right Bottom corner
-#define RT L'\u2510' // 187 Right Top corner
-#define LT L'\u250C' // 201 Left Top cornet
-#define LB L'\u2514' // 200 Left Bottom corner
-#define MC L'\u253C' // 206 Midle Cross
-#define HL L'\u2500' // 205 Horizontal Line
-#define H1 L'\u2574' // 205 Horizontal Half Line Left
-#define H2 L'\u2576' // 205 Horizontal Half Line Right
-#define LC L'\u251C' // 204 Left Cross
-#define RC L'\u2524' // 185 Right Cross
-#define BC L'\u2534' // 202 Bottom Cross
-#define TC L'\u252C' // 203 Top Cross
-#define VL L'\u2502' // 186 Vertical Line
-#define V1 L'\u2575' // 186 Vertical Half Line Top
-#define V2 L'\u2577' // 186 Vertical Half Line Bottom
+#define RB "\xE2\x94\x98" // 188 Right Bottom corner
+#define RT "\xE2\x94\x90" // 187 Right Top corner
+#define LT "\xE2\x94\x8C" // 201 Left Top cornet
+#define LB "\xE2\x94\x94" // 200 Left Bottom corner
+#define MC "\xE2\x94\xBC" // 206 Midle Cross
+#define HL "\xE2\x94\x80" // 205 Horizontal Line
+#define H1 "\xE2\x95\xB4" // 205 Horizontal Half Line Left
+#define H2 "\xE2\x95\xB6" // 205 Horizontal Half Line Right
+#define LC "\xE2\x94\x9C" // 204 Left Cross
+#define RC "\xE2\x94\xA4" // 185 Right Cross
+#define BC "\xE2\x94\xB4" // 202 Bottom Cross
+#define TC "\xE2\x94\xAC" // 203 Top Cross
+#define VL "\xE2\x94\x82" // 186 Vertical Line
+#define V1 "\xE2\x95\xB5" // 186 Vertical Half Line Top
+#define V2 "\xE2\x95\xB7" // 186 Vertical Half Line Bottom
 
-#define FB L'\u2588' //full block
-#define SQ L'\u25A0' //square
-#define LHB L'\u258C' //Left half block
-#define RHB L'\u2590' //right half block
-#define THB L'\u2580' //Upper half block
-#define BHB L'\u2584' //Lower half block
-
-#define LBB L'\u2596' //▖ 	Quadrant lower left
-#define RBB L'\u2597' //▗ 	Quadrant lower right
-#define LTB L'\u2598'  //Quadrant upper left 
-#define RTB L'\u259D' //
+#define FB  "\xE2\x96\x88" //full block
+#define SQ  "\xE2\x96\xA0" //square
+#define LHB "\xE2\x96\x8C" //Left half block
+#define RHB "\xE2\x96\x90" //right half block
+#define THB "\xE2\x96\x80" //Upper half block
+#define BHB "\xE2\x96\x84" //Lower half block
 
 #define EDGE(i, j, d) ((bool)(maze(i,j) & (1 << d)))
 
-#define SP L' ' 		  // space string
-#define ST L'*'
+#define SP " " 		  // space string
+#define ST "*"
 
 #define N_INFO 16
 
-static const wchar_t box_char[] = {SP, H2, V2, LT, H1, HL, RT, TC, V1, LB, VL, LC, RB, BC, RC, MC};
-static const wchar_t block_char[] = {RHB, BHB, LHB, THB};
-static const wchar_t qblock_char[] = {LTB, LBB, RBB, RTB};
+static const std::string box_char[] = {SP, H2, V2, LT, H1, HL, RT, TC, V1, LB, VL, LC, RB, BC, RC, MC};
+static const std::string block_char[] = {RHB, BHB, LHB, THB};
 
 static int info_color[N_INFO];
 
@@ -78,26 +72,33 @@ bool check_bidir() {
     return true;
 }
 
-std::wstring text_horizontal(int i) {
-    std::wstring s;
+std::string dup(const std::string &s, int times) {
+    std::string res;
+
+    for (int i = 0; i < times; ++i)
+        res += s;
+
+    return res;
+}
+
+std::string text_horizontal(int i) {
+    std::string s;
 
     for(int j = 0; j < n; ++j) {
         s += ST;
-        
-        wchar_t c = EDGE(i,j, DUP)?SP:ST;
-        s += std::wstring(CELL_W, c);
+        s += dup(EDGE(i,j, DUP)?SP:ST, CELL_W);
     }
     s += ST;
     return s;
 }
 
-std::wstring text_vertical(int i) {
-    std::wstring s;
+std::string text_vertical(int i) {
+    std::string s;
     
     s += ST;
     for(int j = 0; j < n; ++j) {
 
-        s += std::wstring(CELL_W, SP);
+        s += dup(SP, CELL_W);
 
         if (EDGE(i, j, DRIGHT))
             s += SP;
@@ -107,7 +108,7 @@ std::wstring text_vertical(int i) {
     return s;
 }
 
-void star_to_box(std::vector<std::wstring> &border){
+void star_to_box(std::vector<std::string> &border){
 
     const int h = border.size();
     if (!h)
@@ -115,11 +116,14 @@ void star_to_box(std::vector<std::wstring> &border){
 
     const int w = border[0].length();
 
+    std::vector<std::string> res(h);
 
     for (int i = 0; i < h; ++i) {
         for (int j = 0; j < w; ++j) {
-            if (border[i][j] == ' ')
+            if (border[i][j] == ' ') {
+                res[i] += SP;
                 continue;
+            }
 
             int type = 0;
             for (int d = 0; d < 4; ++d) {
@@ -130,24 +134,26 @@ void star_to_box(std::vector<std::wstring> &border){
                     type |= (1 << d);
             }
 
-            border[i][j] = box_char[type];
+            res[i] += box_char[type];
         }
     }
 
+    border = res;
+
 }
 
-std::vector<std::wstring> get_border() {
+std::vector<std::string> get_border() {
     //star border
-    std::vector<std::wstring> border;
+    std::vector<std::string> border;
 
     for (int i = 0; i < m; ++i) {
         border.push_back(text_horizontal(i));
 
-        std::wstring s = text_vertical(i);
+        std::string s = text_vertical(i);
         for (int k = 0; k < CELL_H; ++k)
             border.push_back(s);
     }
-    border.push_back(std::wstring((CELL_W + 1) * n + 1,'*'));
+    border.push_back(std::string((CELL_W + 1) * n + 1,'*'));
 
     star_to_box(border);
 
@@ -156,10 +162,10 @@ std::vector<std::wstring> get_border() {
 
 void draw_border() {
     gotoxy(1, 1);
-    std::vector<std::wstring> border = get_border();
+    std::vector<std::string> border = get_border();
 
     for (int i = 0; i < border.size(); ++i)
-        std::wcout << border[i] << std::endl;
+        std::cout << border[i] << std::endl;
 }
 
 region get_cell_reg(int i, int j) {
@@ -174,18 +180,19 @@ void clear_cell(int i, int j){
     for (int row = u; row <= d; ++row) {
         gotoxy(row, l);
         for (int col = l; col <= r; ++col)
-            std::wcout << L' ';
+            std::cout << ' ';
     }
 }
 
-void fill(wchar_t c, region reg) {
+void fill(const std::string c, region reg) {
     int l, r, u, d;
     std::tie(u, l, d, r) = reg;
 
     for (int row = u; row <= d; ++row) {
-        gotoxy(row, l);
-        for (int col = l; col <= r; ++col)
-           std::wcout << c;
+        for (int col = l; col <= r; ++col) {
+            gotoxy(row, col);
+            std::cout << c;
+        }
     }
 }
 
@@ -313,7 +320,7 @@ void draw_cell(int i, int j) {
 
     reset_fg();
 
-    std::wcout.flush();
+    std::cout.flush();
 }
 
 void draw_cell() {
@@ -361,5 +368,5 @@ void clear_info() {
 
 void gotoend() {
     gotoxy(m * (CELL_H + 1)  + 2, 0);
-    std::wcout.flush();
+    std::cout.flush();
 }

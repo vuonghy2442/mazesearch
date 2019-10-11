@@ -6,13 +6,13 @@
 
 void show_cursor(bool on) {
     if (on)
-        std::wcout << L"\e[?25h";
+        std::cout << "\e[?25h";
     else
-        std::wcout << L"\e[?25l";
+        std::cout << "\e[?25";
 }
 
 void gotoxy(int x, int y) {
-    std::wcout << L"\e[" << x << L";" << y << L"f";
+    std::cout << "\e[" << x << ";" << y << "f";
 }
 
 void clear_screen(){
@@ -26,20 +26,20 @@ void wait(int milisec){
 }
 
 void set_bg(int c) {
-    std::wcout << L"\e[48;5;" << c << L"m";
+    std::cout << "\e[48;5;" << c << "m";
 }
 
 void set_fg(int c) {
-    std::wcout << L"\e[38;5;" << c << L"m";
+    std::cout << "\e[38;5;" << c << "m";
 }
 
 void reset_fg() {
-   std::wcout << L"\e[39m";
+   std::cout << "\e[39m";
 }
 void reset_bg() {
-   std::wcout << L"\e[49m";
+   std::cout << "\e[49m";
 }
 
 void reset_all() {
-   std::wcout << L"\e[0m";
+   std::cout << "\e[0m";
 }

@@ -53,13 +53,13 @@ void wait() {
     if (run)
         wait(wait_time);
     else {
-        wchar_t s;
+        char s;
         do {
-            std::wcin.get(s);
+            std::cin.get(s);
         } while (s != 'r' && s != 's');
 
         if (s == 'r') {
-            std::wcin >> wait_time;
+            std::cin >> wait_time;
             run = true;
         }
         
@@ -220,7 +220,7 @@ void run_search(const char *al) {
         color_bfs();
         bfs(sr,sc);
     } else {
-        std::wcerr << L"Unsupported algorithm" << std::endl;
+        std::cerr << "Unsupported algorithm" << std::endl;
     }
 }
 
@@ -231,10 +231,10 @@ void reset() {
 
 int main(int argc, char **argv) {
     if (argc != 3) { 
-        std::wcerr << L"Usage: run maze_file [bfs/dfs/idfs]" << std::endl;
-        std::wcerr << L"Input 'r wait_time_in_ms\\n' to run" << std::endl;
-        std::wcerr << L"Input 's\\n' to do step" << std::endl;
-        std::wcerr << L"Press Ctrl+C to pause run" << std::endl;
+        std::cerr << "Usage: run maze_file [bfs/dfs/idfs]" << std::endl;
+        std::cerr << "Input 'r wait_time_in_ms\\n' to run" << std::endl;
+        std::cerr << "Input 's\\n' to do step" << std::endl;
+        std::cerr << "Press Ctrl+C to pause run" << std::endl;
 
         return 1;
     }
