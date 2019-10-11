@@ -36,7 +36,7 @@ static int wait_time = 300;
 
 void read(const char *file) {
     std::ifstream fin;
-    fin.open(file, std::ios_base::openmode::_S_in);
+    fin.open(file);
 
     fin >> m >> n;
     fin >> sr >> sc >> er >> ec;
