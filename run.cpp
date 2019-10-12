@@ -19,22 +19,25 @@ void intHandler(int dummy) {
     exit(dummy);
 }
 
-#define CURRENT_FLAG 4
-#define GOAL_FLAG 8
+#define CURRENT_FLAG 8
+#define GOAL_FLAG 16
 
 #define DFS_VISITED_FLAG 1
 #define DFS_PATH_FLAG 2
-#define BFS_QUEUE_FLAG 1
-#define BFS_VISITED_FLAG 2
+#define UCS_QUEUE_FLAG 1
+#define UCS_VISITED_FLAG 2
+#define UCS_PATH_FLAG 4
 
 int m, n;
 int sr, sc;
 int er, ec;
 int maze[MAX_M][MAX_N];
+int cost[MAX_M][MAX_N];
+
 
 static int wait_time = 300;
 
-void read(const char *file) {
+void read(const char *file, bool read_cost) {
     std::ifstream fin;
     fin.open(file);
 
@@ -45,6 +48,11 @@ void read(const char *file) {
         for(int j = 0; j < n; ++j)
             fin >> maze[i][j];
 
+    if (read_cost) {
+        for (int i = 0; i < m; ++i)
+            for(int j = 0; j < n; ++j)
+                fin >> cost[i][j];
+    }
 }
 
 void wait() {
@@ -94,6 +102,9 @@ bool dfs(int i, int j, int depth) {
     set_flag(i, j, DFS_VISITED_FLAG);
     set_flag(i, j, DFS_PATH_FLAG); //flag for current path
 
+    set_value(i, j, depth);
+    show_value(i,j);
+
     if (get_info(i,j) & GOAL_FLAG) {
         //goal here
         stay(i, j);
@@ -111,8 +122,11 @@ bool dfs(int i, int j, int depth) {
 
             if (!(get_info(u,v) & DFS_VISITED_FLAG)) {
                 stay(i, j);
+                draw_edge(i, j, d);
                 if (dfs(u, v, depth + 1))
                     return true;
+
+                draw_edge(u, v, rev_dir(d));
             }
         }
 
@@ -140,29 +154,44 @@ void incremental_dfs(int i, int j) {
     }
 }
 
-void bfs(int i, int j) {
-    std::queue<std::tuple<int, int, int>> q;
+void ucs(int sr, int sc) {
+    std::priority_queue<std::tuple<int, int, int, int>, 
+                        std::vector<std::tuple<int, int, int, int>>,
+                        std::greater<std::tuple<int, int, int, int>> > q;
 
-    q.push({i, j, 0});
-    set_flag(i, j, BFS_QUEUE_FLAG);
+    int i = sr;
+    int j = sc;
+
+    q.push({0, i, j, -1});
+    set_flag(i, j, UCS_QUEUE_FLAG);
 
 
     while (!q.empty()) {
         int depth;
-        std::tie(i, j, depth) = q.front();
+        int d;
+
+        std::tie(depth, i, j, d) = q.top();
         q.pop();
 
-        set_flag(i, j, BFS_VISITED_FLAG);
-        reset_flag(i, j, BFS_QUEUE_FLAG);
+        if (get_info(i, j) & UCS_VISITED_FLAG)
+            continue;
+
+        if (d >= 0)
+            draw_edge(i - dr[d], j - dc[d], d);
+
+        set_flag(i, j, UCS_VISITED_FLAG);
+        reset_flag(i, j, UCS_QUEUE_FLAG);
 
         set_value(i, j, depth);
         show_value(i,j);
 
+
         stay(i, j);
+
 
         if (get_info(i,j) & GOAL_FLAG) {
             //goal here
-            return;
+            break;
         }
         
         bool expand = false;
@@ -174,16 +203,56 @@ void bfs(int i, int j) {
             int u = i + dr[d];
             int v = j + dc[d];
 
-            if (!(get_info(u,v) & (BFS_VISITED_FLAG | BFS_QUEUE_FLAG))) {
-                expand = true;
-                q.push({u, v, depth + 1});
-                set_flag(u, v, BFS_QUEUE_FLAG);
+            if (!(get_info(u,v) & UCS_VISITED_FLAG)) {
+                int c = depth + cost[u][v] + 1;
+
+                if (get_info(u,v) & UCS_QUEUE_FLAG) {
+                    if (c < get_value(u,v)) {
+                        set_value(u, v, c);
+                        q.push({c, u, v, d});
+                        expand = true;
+                    } 
+                } else {
+                    set_flag(u, v, UCS_QUEUE_FLAG);
+
+                    set_value(u, v, c);
+                    show_value(u, v);
+
+                    q.push({c, u, v, d});
+                    expand = true;
+                }
+
             }
         }
 
         if (expand)
             stay(i,j);
     }
+
+    //i ,j  is goal
+    if (get_info(i,j) & GOAL_FLAG)
+        while (i != sr || j != sc) {
+            int best_dis = m * n;
+            int best_d = -1;
+            for (int d = 3; d >= 0; --d) {
+                if(!(maze[i][j] & (1 << d)))
+                    continue;
+    
+                int u = i + dr[d];
+                int v = j + dc[d];
+                if (inside(m, n, u, v) && (get_info(u, v) & UCS_VISITED_FLAG) && get_value(u, v) < best_dis) {
+                    best_dis = get_value(u,v);
+                    best_d = d;
+                }
+            }
+
+            i += dr[best_d];
+            j += dc[best_d];
+
+            set_flag(i, j, UCS_PATH_FLAG);
+            draw_edge(i, j, rev_dir(best_d));
+
+        }
 }
 
 void color_dfs() {
@@ -194,13 +263,15 @@ void color_dfs() {
     set_info_color(DFS_VISITED_FLAG | DFS_PATH_FLAG | GOAL_FLAG, 4);
 }
 
-void color_bfs() {
-    set_info_color(BFS_QUEUE_FLAG, 1); //on queue
-    set_info_color(BFS_VISITED_FLAG, 8); //visited
-    set_info_color(BFS_VISITED_FLAG | CURRENT_FLAG, 2); //visited & current on
-    set_info_color(BFS_QUEUE_FLAG | GOAL_FLAG, 7); //goal on queue
-    set_info_color(BFS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, 4); //currently on goal
-    set_info_color(BFS_VISITED_FLAG | GOAL_FLAG, 4); //currently on goal
+void color_ucs() {
+    set_info_color(UCS_QUEUE_FLAG, 1); //on queue
+    set_info_color(UCS_VISITED_FLAG, 8); //visited
+    set_info_color(UCS_VISITED_FLAG | CURRENT_FLAG, 2); //visited & current on
+    set_info_color(UCS_QUEUE_FLAG | GOAL_FLAG, 7); //goal on queue
+    set_info_color(UCS_VISITED_FLAG | CURRENT_FLAG | GOAL_FLAG, 4); //currently on goal
+    set_info_color(UCS_VISITED_FLAG | GOAL_FLAG, 4);
+
+    set_info_color(UCS_VISITED_FLAG | UCS_PATH_FLAG, 5);
 }
 
 void run_search(const char *al) {
@@ -221,8 +292,19 @@ void run_search(const char *al) {
         color_dfs();
         incremental_dfs(sr, sc);
     } else if (al == std::string("bfs")) {
-        color_bfs();
-        bfs(sr,sc);
+        color_ucs();
+        ucs(sr,sc);
+    } else if (al == std::string("ucs")) {
+        color_ucs();
+        for (int i = 0; i < m; ++i)
+            for (int j = 0; j < n;  ++j)
+                if (cost[i][j] > 0) {
+                    set_value(i, j, cost[i][j] + 1);
+                    show_value(i, j);
+                }
+        
+        ucs(sr, sc);
+
     } else {
         std::cerr << "Unsupported algorithm" << std::endl;
     }
@@ -246,7 +328,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, intHandler);
     setlocale(LC_ALL, "");
 
-    read(argv[1]);
+    read(argv[1], argv[2] == std::string("ucs"));
     init(m, n, [](int i,int j) {return maze[i][j];});
     run_search(argv[2]);
 

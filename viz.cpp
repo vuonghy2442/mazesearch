@@ -38,7 +38,7 @@
 #define SP " " 		  // space string
 #define ST "*"
 
-#define N_INFO 16
+#define N_INFO 32
 
 static const std::string box_char[] = {SP, H2, V2, LT, H1, HL, RT, TC, V1, LB, VL, LC, RB, BC, RC, MC};
 static const std::string block_char[] = {RHB, BHB, LHB, THB};
@@ -254,9 +254,7 @@ void draw_edge(int i, int j, int d) {
     int u = i + dr[d];
     int v = j + dc[d];
 
-    int col1 = info_color[info[i][j]];
-    int col2 = info_color[info[u][v]];
-    int colmid = info_color[std::min(info[i][j], info[u][v])];
+    int col = info_color[info[i][j]];
 
     bool ver = dir_ver(d);
 
@@ -265,18 +263,13 @@ void draw_edge(int i, int j, int d) {
 
     reg = move_reg(reg, d);
 
-    if (col1 >= 0 && col2 >= 0) {
-        set_bg(colmid);
+    if (col >= 0) {
+        set_bg(col);
         fill(SP, reg);
         reset_bg();
     } else {
         fill(SP, reg);
     }
-}
-
-void draw_edge(int i, int j){
-    for (int d = 0; d < 4; ++d)
-        draw_edge(i, j, d);
 }
 
 void draw_cell(int i, int j) {
@@ -328,7 +321,6 @@ int get_info(int i, int j) {
 void set_info(int i, int j, int v) {
     info[i][j] = v;
     draw_cell(i,j);
-    draw_edge(i,j);
 }
 
 int get_value(int i, int j) {

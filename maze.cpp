@@ -8,6 +8,7 @@
 
 bool visit[MAX_M][MAX_N];
 int maze[MAX_M][MAX_N]; //maze with binary
+double loop = 0;
 
 int m, n;
 
@@ -17,6 +18,13 @@ void get_random_order(int order[4]) {
         order[i] = order[j];
         order[j] = i;
     }
+}
+
+void add_edge(int i, int j, int d) {
+    int u = i + dr[d];
+    int v = j + dc[d];
+    maze[i][j] |= (1 << d);
+    maze[u][v] |= (1 << rev_dir(d));
 }
 //DFS
 void dfs(int i, int j) {
@@ -30,34 +38,15 @@ void dfs(int i, int j) {
         int u = i + dr[d];
         int v = j + dc[d];
 
-        if (inside(m, n, u, v) && !visit[u][v]) {
-            maze[i][j] |= (1 << d);
-            maze[u][v] |= (1 << rev_dir(d));
-            dfs(u, v);
+        if (inside(m, n, u, v)) {
+            if (!visit[u][v] || random() < loop * RAND_MAX )
+                add_edge(i, j, d);
+
+            if (!visit[u][v])
+                dfs(u, v);
         }
     }
 }
-
-/*void convert() {
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < m; ++j) {
-            int type = 0;
-            
-            if (maze[i][j] >= 0)
-                type |= (1 << rev_dir(maze[i][j] - 1));
-
-            for (int d = 0; d < 4; ++d) {
-                int u = i + dr[d];
-                int v = j + dc[d];
-
-                if (inside(m, n, u,v) && maze[u][v] == d + 1) {
-                    type |= (1 << d);
-                }
-            }
-            bmaze[i][j] = type;
-        }
-    }
-}*/
 
 void dfs() {
     dfs(0, 0);
@@ -75,25 +64,20 @@ void prim() {
         std::tie(std::ignore,i, j, d) = q.top();
         q.pop();
 
+        if (d >= 0 && (!visit[i][j] || random() < loop * RAND_MAX ))
+            add_edge(i, j, rev_dir(d));
+
         if (visit[i][j])
             continue;
 
         visit[i][j] = true;
 
-        if (d >= 0) {
-            int u = i - dr[d];
-            int v = j - dc[d];
-            maze[i][j] |= 1 << rev_dir(d);
-            maze[u][v] |= 1 << d;
-        }
-
         for (int d = 0; d < 4; ++d) {
             int u = i + dr[d];
             int v = j + dc[d];
 
-            if (inside(m, n, u, v) && !visit[u][v]) {
+            if (inside(m, n, u, v) && !visit[u][v])
                 q.push({rand(), u, v, d});
-            }
         }
     }
 }
@@ -111,26 +95,39 @@ void print() {
             std::cout << maze[i][j] << " ";
         std::cout << std::endl;
     }
+
+    //random weight
+    
+    for(int i = 0; i < m; ++i){
+        for (int j = 0; j < n; ++j) 
+            if ((i == m - 1 && j == n - 1) || (i == 0 && j == 0))
+                std::cout << 0 << " ";
+            else
+                std::cout << random() % 5 << " ";
+
+        std::cout << std::endl;
+    }
 }
 
 int main(int argc, char **argv) {
 
-    if (argc != 4 && argc != 5) {
-        std::cerr << "Usage: maze height width [dfs/prim] (seed)" << std::endl;
+    if (argc != 5 && argc != 6) {
+        std::cerr << "Usage: maze height width loop [dfs/prim] (seed)" << std::endl;
         return 1;
     }
 
-    if (argc == 4)
+    if (argc == 5)
         srand(time(NULL));
     else
-        srand(atoi(argv[4]));
+        srand(atoi(argv[5]));
 
     m = atoi(argv[1]);
     n = atoi(argv[2]);
+    loop = atof(argv[3]);
 
-    if (argv[3] == std::string("dfs"))
+    if (argv[4] == std::string("dfs"))
         dfs();
-    else if (argv[3] == std::string("prim"))
+    else if (argv[4] == std::string("prim"))
         prim();
     else {
         std::cerr << "Unsupported algorithm" << std::endl;

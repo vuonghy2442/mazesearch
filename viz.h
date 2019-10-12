@@ -16,6 +16,7 @@ void clear_info();
 void gotoend();
 void draw_border();
 void draw_cell();
+void draw_edge(int i, int j, int d);
 
 void set_info_color(int info, int color);
 
