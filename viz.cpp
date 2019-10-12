@@ -177,16 +177,6 @@ region get_cell_reg(int i, int j) {
             (i+1) * (CELL_H + 1), (j+1) * (CELL_W + 1)};
 }
 
-void clear_cell(int i, int j){
-    int l, r, u, d;
-    std::tie(u, l, d, r) = get_cell_reg(i, j);
-
-    for (int row = u; row <= d; ++row) {
-        gotoxy(row, l);
-        for (int col = l; col <= r; ++col)
-            std::cout << ' ';
-    }
-}
 
 void fill(const std::string c, region reg) {
     int l, r, u, d;
@@ -199,7 +189,6 @@ void fill(const std::string c, region reg) {
         }
     }
 }
-
 
 void draw_value(int v, region reg) {
     int l, r, u, d;
@@ -274,12 +263,10 @@ void draw_edge(int i, int j, int d) {
 
 void draw_cell(int i, int j) {
     int col = info_color[info[i][j]];
-    if (col < 0)
-        clear_cell(i, j);
-
     region reg = get_cell_reg(i, j);
 
-    set_bg(col);
+    if (col >= 0)
+        set_bg(col);
     if (is_show[i][j])
         draw_value(value[i][j],  reg);
     else
