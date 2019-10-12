@@ -266,7 +266,7 @@ void draw_edge(int i, int j, int d) {
     if (col >= 0) {
         set_bg(col);
         fill(SP, reg);
-        reset_bg();
+        reset_all();
     } else {
         fill(SP, reg);
     }
@@ -284,7 +284,7 @@ void draw_cell(int i, int j) {
         draw_value(value[i][j],  reg);
     else
         fill(SP, reg);
-    reset_bg();
+    reset_all();
 
     std::cout.flush();
 }
