@@ -176,6 +176,7 @@ void ucs(int sr, int sc) {
         if (get_info(i, j) & UCS_VISITED_FLAG)
             continue;
 
+        cost[i][j] = rev_dir(d); //reuse this to save direction
         if (d >= 0)
             draw_edge(i - dr[d], j - dc[d], d);
 
@@ -232,20 +233,7 @@ void ucs(int sr, int sc) {
     //i ,j  is goal
     if (get_info(i,j) & GOAL_FLAG)
         while (i != sr || j != sc) {
-            int best_dis = m * n;
-            int best_d = -1;
-            for (int d = 3; d >= 0; --d) {
-                if(!(maze[i][j] & (1 << d)))
-                    continue;
-    
-                int u = i + dr[d];
-                int v = j + dc[d];
-                if (inside(m, n, u, v) && (get_info(u, v) & UCS_VISITED_FLAG) && get_value(u, v) < best_dis) {
-                    best_dis = get_value(u,v);
-                    best_d = d;
-                }
-            }
-
+            int best_d = cost[i][j];
             i += dr[best_d];
             j += dc[best_d];
 
